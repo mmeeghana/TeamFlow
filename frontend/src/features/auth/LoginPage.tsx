@@ -86,6 +86,11 @@ export function LoginPage() {
             <p className="mt-2 text-sm text-rose-300">{errors.password.message}</p>
           ) : null}
         </div>
+        <div className="flex justify-end">
+          <Link className="text-sm font-medium text-cyan-300 hover:text-cyan-200" to="/forgot-password">
+            Forgot password?
+          </Link>
+        </div>
         {formError ? (
           <div className="rounded-md border border-rose-400/30 bg-rose-400/10 px-4 py-3 text-sm text-rose-100">
             {formError}

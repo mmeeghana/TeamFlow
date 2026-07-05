@@ -43,7 +43,7 @@ export function RegisterPage() {
 
     try {
       await createAccount(values);
-      navigate('/dashboard', { replace: true });
+      navigate('/verify-email', { replace: true, state: { email: values.email } });
     } catch (error) {
       setFormError(getErrorMessage(error));
     }

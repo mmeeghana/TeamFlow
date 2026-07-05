@@ -4,7 +4,7 @@ import {
   getStoredAccessToken,
   storeAccessToken,
 } from '../../lib/auth-token';
-import { fetchCurrentUser, loginUser, registerUser } from './auth-api';
+import { fetchCurrentUser, loginUser, registerUser, verifyEmail } from './auth-api';
 import { AuthContext, type AuthContextValue } from './auth-context-value';
 import type { AuthUser } from './types';
 
@@ -56,7 +56,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(auth.user);
       },
       register: async (payload) => {
-        const auth = await registerUser(payload);
+        const response = await registerUser(payload);
+        return response.message;
+      },
+      verifyEmail: async (payload) => {
+        const auth = await verifyEmail(payload);
         storeAccessToken(auth.accessToken);
         setUser(auth.user);
       },
