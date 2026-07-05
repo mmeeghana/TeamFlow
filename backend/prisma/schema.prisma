@@ -1,0 +1,361 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  MANAGER
+  MEMBER
+}
+
+enum TaskStatus {
+  BACKLOG
+  TODO
+  IN_PROGRESS
+  IN_REVIEW
+  BLOCKED
+  DONE
+  ARCHIVED
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum NotificationType {
+  PROJECT_INVITE
+  TASK_ASSIGNED
+  TASK_UPDATED
+  COMMENT_MENTION
+  REVIEW_REQUESTED
+  RCA_UPDATED
+  SYSTEM
+}
+
+enum RCAStatus {
+  DRAFT
+  IN_REVIEW
+  APPROVED
+  REJECTED
+  ARCHIVED
+}
+
+enum RCASeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum ReviewDecision {
+  PENDING
+  APPROVED
+  CHANGES_REQUESTED
+  REJECTED
+}
+
+/// User accounts own projects, participate through ProjectMember, and create
+/// collaborative records such as tasks, comments, attachments, reviews, and RCA content.
+model User {
+  id           String   @id @default(uuid()) @db.Uuid
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         UserRole @default(MEMBER)
+  avatarUrl    String?
+  isActive     Boolean  @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  ownedProjects        Project[]       @relation("ProjectOwner")
+  projectMemberships   ProjectMember[]
+  createdTasks         Task[]          @relation("TaskCreator")
+  assignedTasks        Task[]          @relation("TaskAssignee")
+  reportedTasks        Task[]          @relation("TaskReporter")
+  comments             Comment[]
+  attachments          Attachment[]
+  notifications        Notification[]  @relation("NotificationRecipient")
+  triggeredNotifications Notification[] @relation("NotificationActor")
+  activityLogs         ActivityLog[]   @relation("ActivityActor")
+  createdRCAs          RCA[]           @relation("RCACreator")
+  reviews              Review[]
+
+  @@index([role])
+  @@index([isActive])
+  @@index([createdAt])
+}
+
+/// Projects group members, tasks, incident analyses, and audit activity.
+/// Deleting a project cascades to project-scoped child records.
+model Project {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String
+  key         String   @unique
+  description String?
+  ownerId     String   @db.Uuid
+  startDate   DateTime?
+  dueDate     DateTime?
+  archivedAt  DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  owner        User            @relation("ProjectOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  members      ProjectMember[]
+  tasks        Task[]
+  rcas         RCA[]
+  notifications Notification[]
+  activityLogs ActivityLog[]
+
+  @@index([ownerId])
+  @@index([archivedAt])
+  @@index([createdAt])
+}
+
+/// Join table between users and projects. The member role controls permissions
+/// within a single project and is independent from the user's global role.
+model ProjectMember {
+  id        String   @id @default(uuid()) @db.Uuid
+  projectId String   @db.Uuid
+  userId    String   @db.Uuid
+  role      UserRole @default(MEMBER)
+  joinedAt  DateTime @default(now())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
+  @@index([userId])
+  @@index([projectId, role])
+}
+
+/// Tasks are project-scoped work items. Optional assignee and reporter links use
+/// SetNull so task history remains available if a user account is removed.
+model Task {
+  id          String       @id @default(uuid()) @db.Uuid
+  projectId   String       @db.Uuid
+  title       String
+  description String?
+  status      TaskStatus   @default(TODO)
+  priority    TaskPriority @default(MEDIUM)
+  position    Int          @default(0)
+  createdById String?      @db.Uuid
+  assigneeId  String?      @db.Uuid
+  reporterId  String?      @db.Uuid
+  parentTaskId String?     @db.Uuid
+  dueDate     DateTime?
+  startedAt   DateTime?
+  completedAt DateTime?
+  archivedAt  DateTime?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  project      Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdBy    User?          @relation("TaskCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  assignee     User?          @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  reporter     User?          @relation("TaskReporter", fields: [reporterId], references: [id], onDelete: SetNull)
+  parentTask   Task?          @relation("TaskHierarchy", fields: [parentTaskId], references: [id], onDelete: SetNull)
+  subtasks     Task[]         @relation("TaskHierarchy")
+  outgoingRelations TaskRelation[] @relation("TaskRelationSource")
+  incomingRelations TaskRelation[] @relation("TaskRelationTarget")
+  comments     Comment[]
+  attachments  Attachment[]
+  activityLogs ActivityLog[]
+  rcas         RCA[]
+  reviews      Review[]
+
+  @@index([projectId, status])
+  @@index([projectId, priority])
+  @@index([assigneeId, status])
+  @@index([createdById])
+  @@index([reporterId])
+  @@index([parentTaskId])
+  @@index([dueDate])
+  @@index([archivedAt])
+}
+
+/// Directed dependency graph between tasks, such as one task blocking another.
+model TaskRelation {
+  id           String   @id @default(uuid()) @db.Uuid
+  sourceTaskId String   @db.Uuid
+  targetTaskId String   @db.Uuid
+  type         String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  sourceTask Task @relation("TaskRelationSource", fields: [sourceTaskId], references: [id], onDelete: Cascade)
+  targetTask Task @relation("TaskRelationTarget", fields: [targetTaskId], references: [id], onDelete: Cascade)
+
+  @@unique([sourceTaskId, targetTaskId, type])
+  @@index([targetTaskId])
+}
+
+/// Comments attach to tasks and keep author references nullable for history.
+model Comment {
+  id        String   @id @default(uuid()) @db.Uuid
+  taskId    String   @db.Uuid
+  authorId  String?  @db.Uuid
+  body      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  task        Task         @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  author      User?        @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  attachments Attachment[]
+
+  @@index([taskId, createdAt])
+  @@index([authorId])
+}
+
+/// Uploaded files can be attached directly to a task or to a specific comment.
+model Attachment {
+  id           String   @id @default(uuid()) @db.Uuid
+  taskId       String   @db.Uuid
+  commentId    String?  @db.Uuid
+  uploadedById String?  @db.Uuid
+  fileName     String
+  mimeType     String
+  sizeBytes    Int
+  storageKey   String
+  url          String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  task       Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  comment    Comment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  uploadedBy User?    @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
+
+  @@index([taskId])
+  @@index([commentId])
+  @@index([uploadedById])
+  @@index([createdAt])
+}
+
+/// Notifications are addressed to a user and may point back to a project and
+/// optional actor that caused the notification.
+model Notification {
+  id          String           @id @default(uuid()) @db.Uuid
+  recipientId String           @db.Uuid
+  actorId     String?          @db.Uuid
+  projectId   String?          @db.Uuid
+  type        NotificationType
+  title       String
+  message     String
+  metadata    Json?
+  readAt      DateTime?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  recipient User     @relation("NotificationRecipient", fields: [recipientId], references: [id], onDelete: Cascade)
+  actor     User?    @relation("NotificationActor", fields: [actorId], references: [id], onDelete: SetNull)
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([recipientId, readAt])
+  @@index([recipientId, createdAt])
+  @@index([actorId])
+  @@index([projectId])
+  @@index([type])
+}
+
+/// Append-only audit entries for project and task actions.
+model ActivityLog {
+  id        String   @id @default(uuid()) @db.Uuid
+  projectId String   @db.Uuid
+  taskId    String?  @db.Uuid
+  actorId   String?  @db.Uuid
+  action    String
+  entityType String
+  entityId   String   @db.Uuid
+  metadata  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  task    Task?   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  actor   User?   @relation("ActivityActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([projectId, createdAt])
+  @@index([taskId])
+  @@index([actorId])
+  @@index([entityType, entityId])
+}
+
+/// Root Cause Analysis records are project-scoped and can optionally be tied to
+/// a task or incident task. Sections and reviews cascade with the RCA.
+model RCA {
+  id          String      @id @default(uuid()) @db.Uuid
+  projectId   String      @db.Uuid
+  taskId      String?     @db.Uuid
+  createdById String?     @db.Uuid
+  title       String
+  summary     String?
+  status      RCAStatus   @default(DRAFT)
+  severity    RCASeverity @default(MEDIUM)
+  incidentAt  DateTime?
+  approvedAt  DateTime?
+  archivedAt  DateTime?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  project   Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  task      Task?        @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  createdBy User?        @relation("RCACreator", fields: [createdById], references: [id], onDelete: SetNull)
+  sections  RCASection[]
+  reviews   Review[]
+
+  @@index([projectId, status])
+  @@index([projectId, severity])
+  @@index([taskId])
+  @@index([createdById])
+  @@index([incidentAt])
+  @@index([archivedAt])
+}
+
+/// Ordered content blocks that make up an RCA document.
+model RCASection {
+  id        String   @id @default(uuid()) @db.Uuid
+  rcaId     String   @db.Uuid
+  title     String
+  content   String
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  rca RCA @relation(fields: [rcaId], references: [id], onDelete: Cascade)
+
+  @@unique([rcaId, order])
+  @@index([rcaId])
+}
+
+/// Reviews capture approval decisions for tasks or RCA documents.
+model Review {
+  id         String         @id @default(uuid()) @db.Uuid
+  reviewerId String?        @db.Uuid
+  taskId     String?        @db.Uuid
+  rcaId      String?        @db.Uuid
+  decision   ReviewDecision @default(PENDING)
+  comment    String?
+  requestedAt DateTime      @default(now())
+  decidedAt   DateTime?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  reviewer User? @relation(fields: [reviewerId], references: [id], onDelete: SetNull)
+  task     Task? @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  rca      RCA?  @relation(fields: [rcaId], references: [id], onDelete: Cascade)
+
+  @@index([reviewerId, decision])
+  @@index([taskId])
+  @@index([rcaId])
+  @@index([requestedAt])
+}
