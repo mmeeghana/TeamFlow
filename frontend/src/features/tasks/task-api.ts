@@ -1,0 +1,42 @@
+import { api } from '../../lib/api';
+import type { Task, TaskPriority, TasksResponse, TaskStatus } from './types';
+
+export type TaskPayload = {
+  title: string;
+  description?: string | null;
+  status: TaskStatus;
+  priority: TaskPriority;
+  dueDate?: string | null;
+  estimatedHours?: number | null;
+  assigneeId?: string | null;
+};
+
+export async function getTasks(
+  projectId: string,
+  params: {
+    search?: string;
+    status?: TaskStatus | '';
+    priority?: TaskPriority | '';
+    assigneeId?: string;
+    page?: number;
+    pageSize?: number;
+  },
+) {
+  const response = await api.get<TasksResponse>(`/projects/${projectId}/tasks`, { params });
+  return response.data;
+}
+
+export async function createTask(projectId: string, payload: TaskPayload) {
+  const response = await api.post<{ task: Task }>(`/projects/${projectId}/tasks`, payload);
+  return response.data.task;
+}
+
+export async function updateTask(projectId: string, taskId: string, payload: TaskPayload) {
+  const response = await api.patch<{ task: Task }>(`/projects/${projectId}/tasks/${taskId}`, payload);
+  return response.data.task;
+}
+
+export async function deleteTask(projectId: string, taskId: string) {
+  const response = await api.delete<{ message: string }>(`/projects/${projectId}/tasks/${taskId}`);
+  return response.data;
+}
