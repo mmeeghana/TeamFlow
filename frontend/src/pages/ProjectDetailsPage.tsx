@@ -16,6 +16,7 @@ import type { Task, TaskPriority, TaskStatus } from '../features/tasks/types';
 import { useTasks } from '../features/tasks/useTasks';
 import { TaskSkeleton } from '../features/tasks/TaskSkeleton';
 import { ActivityTimeline } from '../features/activity/ActivityTimeline';
+import { NotificationBell } from '../features/notifications/NotificationBell';
 import { KanbanBoard } from '../features/tasks/KanbanBoard';
 import { TaskCalendar } from '../features/tasks/TaskCalendar';
 
@@ -177,9 +178,12 @@ export function ProjectDetailsPage() {
     <main className="min-h-screen bg-slate-950 text-slate-50">
       <Toast toast={toast} />
       <section className="mx-auto max-w-6xl px-6 py-8">
-        <Link to="/dashboard" className="inline-flex items-center gap-2 text-sm text-cyan-300">
-          <ArrowLeft size={16} /> Projects
-        </Link>
+        <div className="flex items-center justify-between gap-4">
+          <Link to="/dashboard" className="inline-flex items-center gap-2 text-sm text-cyan-300">
+            <ArrowLeft size={16} /> Projects
+          </Link>
+          <NotificationBell onToast={showToast} />
+        </div>
         {isLoading ? (
           <p className="mt-10 text-slate-300">Loading project...</p>
         ) : project ? (
@@ -388,6 +392,7 @@ export function ProjectDetailsPage() {
     </main>
   );
 }
+
 
 
 

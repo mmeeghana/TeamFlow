@@ -2,6 +2,7 @@ import { Prisma, TaskStatus } from '@prisma/client';
 import { prisma } from '../../config/prisma.js';
 import { HttpError } from '../../utils/http-error.js';
 import { recordActivity } from '../activity/activity.service.js';
+import { createNotification } from '../notifications/notification.service.js';
 import type {
   CreateTaskInput,
   ListTasksInput,
@@ -120,6 +121,18 @@ export async function createTask(userId: string, projectId: string, input: Creat
     },
     include: taskInclude,
   });
+  if (task.assigneeId) {
+    await createNotification({
+      recipientId: task.assigneeId,
+      actorId: userId,
+      projectId,
+      type: 'TASK_ASSIGNED',
+      title: 'Task assigned',
+      message: 'You were assigned to ' + task.title + '.',
+      metadata: { taskId: task.id },
+    });
+  }
+
   await recordActivity({
     projectId,
     taskId: task.id,
@@ -167,6 +180,17 @@ export async function updateTask(userId: string, projectId: string, taskId: stri
     await recordActivity({ projectId, taskId, actorId: userId, action: 'DUE_DATE_CHANGED', entityType: 'Task', entityId: taskId, metadata: { from: dateMeta(existingTask.dueDate), to: dateMeta(input.dueDate) } });
   }
   if (input.assigneeId !== undefined && input.assigneeId !== existingTask.assigneeId) {
+    if (input.assigneeId) {
+      await createNotification({
+        recipientId: input.assigneeId,
+        actorId: userId,
+        projectId,
+        type: 'TASK_ASSIGNED',
+        title: 'Task assigned',
+        message: 'You were assigned to ' + task.title + '.',
+        metadata: { taskId },
+      });
+    }
     await recordActivity({ projectId, taskId, actorId: userId, action: 'ASSIGNEE_CHANGED', entityType: 'Task', entityId: taskId, metadata: { from: existingTask.assigneeId, to: input.assigneeId } });
   }
   return task;
@@ -224,3 +248,7 @@ export async function reorderTasks(userId: string, projectId: string, input: Reo
   );
   return { message: 'Task order updated.' };
 }
+
+
+
+

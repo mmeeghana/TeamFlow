@@ -2,6 +2,7 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '../../config/prisma.js';
 import { HttpError } from '../../utils/http-error.js';
 import { recordActivity } from '../activity/activity.service.js';
+import { createNotification } from '../notifications/notification.service.js';
 import type { CreateProjectInput, InviteMemberInput, ListProjectsInput, UpdateProjectInput } from './project.schemas.js';
 
 function slugify(value: string) {
@@ -182,6 +183,16 @@ export async function inviteProjectMember(userId: string, projectId: string, inp
     },
   });
 
+  await createNotification({
+    recipientId: invitedUser.id,
+    actorId: userId,
+    projectId,
+    type: 'PROJECT_INVITE',
+    title: 'Project invitation',
+    message: 'You were invited to a project.',
+    metadata: { projectId },
+  });
+
   await recordActivity({
     projectId,
     actorId: userId,
@@ -229,3 +240,6 @@ export async function removeProjectMember(userId: string, projectId: string, mem
 
   return { message: 'Project member removed.' };
 }
+
+
+

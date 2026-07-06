@@ -1,6 +1,7 @@
 import { LogOut, Plus, Search } from 'lucide-react';
 import { useState } from 'react';
 import { Toast, type ToastState } from '../components/Toast';
+import { NotificationBell } from '../features/notifications/NotificationBell';
 import { useAuth } from '../features/auth/useAuth';
 import { DeleteProjectModal } from '../features/projects/DeleteProjectModal';
 import { ProjectCard } from '../features/projects/ProjectCard';
@@ -79,6 +80,7 @@ export function DashboardPage() {
             <h1 className="mt-1 text-2xl font-semibold tracking-normal">Dashboard</h1>
           </div>
           <div className="flex items-center gap-3">
+            <NotificationBell onToast={showToast} />
             <div className="hidden text-right sm:block">
               <p className="text-sm font-medium">{user?.name}</p>
               <p className="text-xs text-slate-400">{user?.email}</p>
@@ -192,3 +194,4 @@ export function DashboardPage() {
     </main>
   );
 }
+

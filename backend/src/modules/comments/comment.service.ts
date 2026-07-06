@@ -1,6 +1,7 @@
 import { prisma } from '../../config/prisma.js';
 import { HttpError } from '../../utils/http-error.js';
 import { assertProjectMember, recordActivity } from '../activity/activity.service.js';
+import { createNotification } from '../notifications/notification.service.js';
 import type { CreateCommentInput, UpdateCommentInput } from './comment.schemas.js';
 
 const commentInclude = {
@@ -55,6 +56,18 @@ export async function createComment(userId: string, projectId: string, taskId: s
     },
     include: commentInclude,
   });
+
+  for (const mentionedUserId of mentionedUserIds) {
+    await createNotification({
+      recipientId: mentionedUserId,
+      actorId: userId,
+      projectId,
+      type: 'COMMENT_MENTION',
+      title: 'You were mentioned',
+      message: 'You were mentioned in a comment on ' + task.title + '.',
+      metadata: { taskId, commentId: comment.id },
+    });
+  }
 
   await recordActivity({
     projectId,
@@ -138,3 +151,7 @@ export async function deleteComment(userId: string, projectId: string, taskId: s
 
   return { message: 'Comment deleted.' };
 }
+
+
+
+
