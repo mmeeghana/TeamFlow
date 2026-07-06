@@ -222,35 +222,30 @@ model Comment {
 
   task        Task         @relation(fields: [taskId], references: [id], onDelete: Cascade)
   author      User?        @relation(fields: [authorId], references: [id], onDelete: SetNull)
-  attachments Attachment[]
 
   @@index([taskId, createdAt])
   @@index([authorId])
   @@index([createdAt])
 }
 
-/// Uploaded files can be attached directly to a task or to a specific comment.
+/// Uploaded files are task-scoped and stored on disk under backend/uploads.
 model Attachment {
   id           String   @id @default(uuid()) @db.Uuid
   taskId       String   @db.Uuid
-  commentId    String?  @db.Uuid
-  uploadedById String?  @db.Uuid
-  fileName     String
+  filename     String   @map("storageKey")
+  originalName String   @map("fileName")
   mimeType     String
-  sizeBytes    Int
-  storageKey   String
-  url          String?
-  createdAt    DateTime @default(now())
+  size         Int      @map("sizeBytes")
+  uploadedById String?  @db.Uuid
+  uploadedAt   DateTime @default(now()) @map("createdAt")
   updatedAt    DateTime @updatedAt
 
-  task       Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  comment    Comment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
-  uploadedBy User?    @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
+  task       Task  @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  uploadedBy User? @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
 
   @@index([taskId])
-  @@index([commentId])
   @@index([uploadedById])
-  @@index([createdAt])
+  @@index([uploadedAt])
 }
 
 /// Notifications are addressed to a user and may point back to a project and
@@ -371,5 +366,6 @@ model Review {
   @@index([rcaId])
   @@index([requestedAt])
 }
+
 
 

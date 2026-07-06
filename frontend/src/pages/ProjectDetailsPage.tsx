@@ -371,7 +371,11 @@ export function ProjectDetailsPage() {
         projectId={projectId}
         currentUserId={user?.id}
         onToast={showToast}
+        projectOwnerId={project?.ownerId}
         onCommentsChanged={async () => {
+          setActivityRefreshKey((key) => key + 1);
+        }}
+        onAttachmentsChanged={async () => {
           setActivityRefreshKey((key) => key + 1);
         }}
       />
@@ -384,6 +388,8 @@ export function ProjectDetailsPage() {
     </main>
   );
 }
+
+
 
 
 

@@ -14,7 +14,9 @@ export type ActivityAction =
   | 'ASSIGNEE_CHANGED'
   | 'COMMENT_ADDED'
   | 'COMMENT_EDITED'
-  | 'COMMENT_DELETED';
+  | 'COMMENT_DELETED'
+  | 'ATTACHMENT_UPLOADED'
+  | 'ATTACHMENT_DELETED';
 
 export async function assertProjectMember(userId: string, projectId: string) {
   const project = await prisma.project.findFirst({
@@ -82,3 +84,6 @@ export async function listProjectActivity(userId: string, projectId: string, inp
     },
   };
 }
+
+
+

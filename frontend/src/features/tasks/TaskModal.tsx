@@ -3,6 +3,7 @@ import { useForm } from 'react-hook-form';
 import type { ProjectMember } from '../projects/types';
 import { taskPriorityLabels, taskStatusLabels } from './task-labels';
 import { CommentsPanel } from '../comments/CommentsPanel';
+import { TaskAttachmentsPanel } from './TaskAttachmentsPanel';
 import type { Task, TaskPriority, TaskStatus } from './types';
 
 export type TaskFormValues = {
@@ -35,6 +36,8 @@ export function TaskModal({
   currentUserId,
   onToast,
   onCommentsChanged,
+  projectOwnerId,
+  onAttachmentsChanged,
 }: {
   title: string;
   task?: Task | null;
@@ -47,6 +50,8 @@ export function TaskModal({
   currentUserId?: string;
   onToast?: (toast: { type: 'success' | 'error'; message: string }) => void;
   onCommentsChanged?: () => Promise<void>;
+  projectOwnerId?: string;
+  onAttachmentsChanged?: () => Promise<void>;
 }) {
   const {
     register,
@@ -229,18 +234,31 @@ export function TaskModal({
 
       {/* COMMENTS SECTION - OUTSIDE THE FORM */}
       {task && projectId && onToast ? (
-        <CommentsPanel
-          projectId={projectId}
-          taskId={task.id}
-          currentUserId={currentUserId}
-          onToast={onToast}
-          onChanged={onCommentsChanged}
-        />
+        <>
+          <CommentsPanel
+            projectId={projectId}
+            taskId={task.id}
+            currentUserId={currentUserId}
+            onToast={onToast}
+            onChanged={onCommentsChanged}
+          />
+          <TaskAttachmentsPanel
+            projectId={projectId}
+            taskId={task.id}
+            currentUserId={currentUserId}
+            projectOwnerId={projectOwnerId}
+            onToast={onToast}
+            onChanged={onAttachmentsChanged}
+          />
+        </>
       ) : null}
     </div>
   </div>
 );
 }
+
+
+
 
 
 
