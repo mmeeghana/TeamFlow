@@ -55,3 +55,7 @@ export async function reorderTasks(projectId: string, tasks: TaskReorderItem[]) 
   const response = await api.patch<{ message: string }>(`/projects/${projectId}/tasks/reorder`, { tasks });
   return response.data;
 }
+export async function updateTaskDueDate(projectId: string, taskId: string, dueDate: string | null) {
+  const response = await api.patch<{ task: Task }>(`/projects/${projectId}/tasks/${taskId}/date`, { dueDate });
+  return response.data.task;
+}

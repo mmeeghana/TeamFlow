@@ -6,6 +6,7 @@ export function useTasks(
   projectId: string | undefined,
   filters: { search: string; status: TaskStatus | ''; priority: TaskPriority | ''; assigneeId: string },
   page: number,
+  pageSize = 8,
 ) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [meta, setMeta] = useState<TasksResponse['meta'] | null>(null);
@@ -31,7 +32,7 @@ export function useTasks(
         priority: filters.priority || undefined,
         assigneeId: filters.assigneeId || undefined,
         page,
-        pageSize: 8,
+        pageSize,
       });
       setTasks(response.items);
       setMeta(response.meta);
@@ -41,7 +42,7 @@ export function useTasks(
     } finally {
       setIsLoading(false);
     }
-  }, [filters.assigneeId, filters.priority, filters.search, filters.status, page, projectId]);
+  }, [filters.assigneeId, filters.priority, filters.search, filters.status, page, pageSize, projectId]);
 
   useEffect(() => {
     void loadTasks();
@@ -49,3 +50,6 @@ export function useTasks(
 
   return { tasks, meta, stats, isLoading, error, reload: loadTasks };
 }
+
+
+

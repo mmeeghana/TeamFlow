@@ -6,6 +6,7 @@ import type {
   ListTasksInput,
   MoveTaskInput,
   ReorderTasksInput,
+  UpdateTaskDateInput,
   UpdateTaskInput,
 } from './task.schemas.js';
 
@@ -192,6 +193,24 @@ export async function deleteTask(userId: string, projectId: string, taskId: stri
   return { message: 'Task deleted.' };
 }
 
+export async function updateTaskDate(userId: string, projectId: string, taskId: string, input: UpdateTaskDateInput) {
+  await getProjectAccess(userId, projectId);
+
+  const task = await prisma.task.findFirst({
+    where: { id: taskId, projectId, archivedAt: null },
+    select: { id: true },
+  });
+
+  if (!task) {
+    throw new HttpError(404, 'Task not found.');
+  }
+
+  return prisma.task.update({
+    where: { id: taskId },
+    data: { dueDate: input.dueDate },
+    include: taskInclude,
+  });
+}
 export async function moveTask(userId: string, projectId: string, taskId: string, input: MoveTaskInput) {
   await getProjectAccess(userId, projectId);
 
@@ -246,4 +265,7 @@ export async function reorderTasks(userId: string, projectId: string, input: Reo
 
   return { message: 'Task order updated.' };
 }
+
+
+
 

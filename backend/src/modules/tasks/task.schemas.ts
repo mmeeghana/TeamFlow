@@ -44,6 +44,10 @@ export const moveTaskSchema = z.object({
   position: z.coerce.number().int().min(0),
 });
 
+export const updateTaskDateSchema = z.object({
+  dueDate: z.coerce.date().nullable(),
+});
+
 export const reorderTasksSchema = z.object({
   tasks: z
     .array(
@@ -61,5 +65,7 @@ export type ListTasksInput = z.infer<typeof listTasksSchema>;
 export type CreateTaskInput = z.infer<typeof createTaskSchema>;
 export type UpdateTaskInput = z.infer<typeof updateTaskSchema>;
 export type MoveTaskInput = z.infer<typeof moveTaskSchema>;
+export type UpdateTaskDateInput = z.infer<typeof updateTaskDateSchema>;
 export type ReorderTasksInput = z.infer<typeof reorderTasksSchema>;
+
 

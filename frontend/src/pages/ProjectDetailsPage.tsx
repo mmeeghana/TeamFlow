@@ -10,12 +10,13 @@ import { useAuth } from '../features/auth/useAuth';
 import { TaskCard } from '../features/tasks/TaskCard';
 import { DeleteTaskModal } from '../features/tasks/DeleteTaskModal';
 import { TaskModal, type TaskFormValues } from '../features/tasks/TaskModal';
-import { createTask, deleteTask, reorderTasks, updateTask } from '../features/tasks/task-api';
+import { createTask, deleteTask, reorderTasks, updateTask, updateTaskDueDate } from '../features/tasks/task-api';
 import { taskPriorityLabels, taskStatusLabels } from '../features/tasks/task-labels';
 import type { Task, TaskPriority, TaskStatus } from '../features/tasks/types';
 import { useTasks } from '../features/tasks/useTasks';
 import { TaskSkeleton } from '../features/tasks/TaskSkeleton';
 import { KanbanBoard } from '../features/tasks/KanbanBoard';
+import { TaskCalendar } from '../features/tasks/TaskCalendar';
 
 type InviteValues = { email: string };
 
@@ -26,7 +27,7 @@ export function ProjectDetailsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [toast, setToast] = useState<ToastState>(null);
   const [taskPage, setTaskPage] = useState(1);
-  const [taskView, setTaskView] = useState<'list' | 'kanban'>('list');
+  const [taskView, setTaskView] = useState<'list' | 'kanban' | 'calendar'>('list');
   const [taskFilters, setTaskFilters] = useState<{
     search: string;
     status: TaskStatus | '';
@@ -38,7 +39,7 @@ export function ProjectDetailsPage() {
   const [deletingTask, setDeletingTask] = useState<Task | null>(null);
   const [isTaskSubmitting, setIsTaskSubmitting] = useState(false);
   const { tasks, meta: taskMeta, stats, isLoading: areTasksLoading, error: taskError, reload: reloadTasks } =
-    useTasks(projectId, taskFilters, taskPage);
+    useTasks(projectId, taskFilters, taskPage, taskView === 'list' ? 8 : 50);
   const { register, handleSubmit, reset, formState: { isSubmitting } } = useForm<InviteValues>();
 
   const loadProject = useCallback(async () => {
@@ -129,6 +130,17 @@ export function ProjectDetailsPage() {
     }
   }
 
+  async function onTaskDueDateChange(task: Task, dueDate: string) {
+    if (!projectId) return;
+    try {
+      await updateTaskDueDate(projectId, task.id, dueDate);
+      showToast({ type: 'success', message: 'Task due date updated.' });
+      await reloadTasks();
+    } catch (error) {
+      showToast({ type: 'error', message: getAuthErrorMessage(error, 'Unable to update due date.') });
+      throw error;
+    }
+  }
   async function onReorderTasks(nextTasks: Array<{ id: string; status: TaskStatus; position: number }>) {
     if (!projectId) return;
     try {
@@ -198,6 +210,7 @@ export function ProjectDetailsPage() {
                   <div className="rounded-md border border-white/10 p-1">
                     <button type="button" onClick={() => setTaskView('list')} className={`rounded px-3 py-1 text-sm ${taskView === 'list' ? 'bg-cyan-300 text-slate-950' : 'text-slate-300'}`}>List View</button>
                     <button type="button" onClick={() => setTaskView('kanban')} className={`rounded px-3 py-1 text-sm ${taskView === 'kanban' ? 'bg-cyan-300 text-slate-950' : 'text-slate-300'}`}>Kanban View</button>
+                    <button type="button" onClick={() => setTaskView('calendar')} className={`rounded px-3 py-1 text-sm ${taskView === 'calendar' ? 'bg-cyan-300 text-slate-950' : 'text-slate-300'}`}>Calendar</button>
                   </div>
                 </div>
                 <button
@@ -263,6 +276,10 @@ export function ProjectDetailsPage() {
               ) : tasks.length === 0 ? (
                 <div className="mt-6 rounded-md border border-dashed border-white/15 px-6 py-12 text-center">
                   <p className="text-lg font-medium text-white">No tasks yet</p>
+                </div>
+              ) : taskView === 'calendar' ? (
+                <div className="mt-6">
+                  <TaskCalendar tasks={tasks} onEventClick={setEditingTask} onDueDateChange={onTaskDueDateChange} />
                 </div>
               ) : taskView === 'kanban' ? (
                 <div className="mt-6">
@@ -360,4 +377,5 @@ export function ProjectDetailsPage() {
     </main>
   );
 }
+
 

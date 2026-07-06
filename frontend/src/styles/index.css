@@ -5,3 +5,63 @@
 html {
   color-scheme: dark;
 }
+.teamflow-calendar .fc {
+  --fc-border-color: rgba(255, 255, 255, 0.1);
+  --fc-page-bg-color: transparent;
+  --fc-neutral-bg-color: rgba(255, 255, 255, 0.04);
+  --fc-list-event-hover-bg-color: rgba(255, 255, 255, 0.06);
+  color: rgb(241 245 249);
+}
+
+.teamflow-calendar .fc-toolbar {
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.teamflow-calendar .fc-toolbar-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.teamflow-calendar .fc-button {
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  border-radius: 0.375rem !important;
+  background: rgba(255, 255, 255, 0.06) !important;
+  color: rgb(226 232 240) !important;
+  box-shadow: none !important;
+}
+
+.teamflow-calendar .fc-button-primary:not(:disabled).fc-button-active,
+.teamflow-calendar .fc-button-primary:not(:disabled):active {
+  background: rgb(103 232 249) !important;
+  color: rgb(2 6 23) !important;
+}
+
+.teamflow-calendar .fc-day-today {
+  background: rgba(103, 232, 249, 0.12) !important;
+}
+
+.teamflow-calendar .fc-event {
+  border-width: 2px;
+  cursor: grab;
+}
+
+.teamflow-calendar .teamflow-critical-event {
+  box-shadow: inset 3px 0 0 #fb7185;
+}
+
+.teamflow-calendar .teamflow-overdue-event {
+  filter: saturate(1.15);
+}
+
+@media (max-width: 767px) {
+  .teamflow-calendar .fc-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .teamflow-calendar .fc-toolbar-chunk {
+    display: flex;
+    justify-content: center;
+  }
+}

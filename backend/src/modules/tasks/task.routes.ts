@@ -8,6 +8,7 @@ import {
   moveTaskController,
   reorderTasksController,
   updateTaskController,
+  updateTaskDateController,
 } from './task.controller.js';
 
 export const taskRouter = Router({ mergeParams: true });
@@ -19,6 +20,8 @@ taskRouter.patch('/reorder', reorderTasksController);
 taskRouter.get('/:taskId', getTaskController);
 taskRouter.patch('/:taskId', updateTaskController);
 taskRouter.patch('/:taskId/move', moveTaskController);
+taskRouter.patch('/:taskId/date', updateTaskDateController);
 taskRouter.delete('/:taskId', deleteTaskController);
+
 
 
