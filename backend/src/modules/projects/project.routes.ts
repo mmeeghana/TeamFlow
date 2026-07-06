@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { requireAuth } from '../../middleware/require-auth.js';
+import { activityRouter } from '../activity/activity.routes.js';
 import { taskRouter } from '../tasks/task.routes.js';
 import {
   createProjectController,
@@ -21,4 +22,6 @@ projectRouter.patch('/:projectId', updateProjectController);
 projectRouter.delete('/:projectId', deleteProjectController);
 projectRouter.post('/:projectId/members', inviteMemberController);
 projectRouter.delete('/:projectId/members/:userId', removeMemberController);
+projectRouter.use('/:projectId/activity', activityRouter);
 projectRouter.use('/:projectId/tasks', taskRouter);
+

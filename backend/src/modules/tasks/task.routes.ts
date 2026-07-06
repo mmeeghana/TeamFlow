@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { requireAuth } from '../../middleware/require-auth.js';
+import { commentRouter } from '../comments/comment.routes.js';
 import {
   createTaskController,
   deleteTaskController,
@@ -22,6 +23,8 @@ taskRouter.patch('/:taskId', updateTaskController);
 taskRouter.patch('/:taskId/move', moveTaskController);
 taskRouter.patch('/:taskId/date', updateTaskDateController);
 taskRouter.delete('/:taskId', deleteTaskController);
+taskRouter.use('/:taskId/comments', commentRouter);
+
 
 
 

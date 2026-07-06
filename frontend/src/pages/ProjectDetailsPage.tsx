@@ -15,6 +15,7 @@ import { taskPriorityLabels, taskStatusLabels } from '../features/tasks/task-lab
 import type { Task, TaskPriority, TaskStatus } from '../features/tasks/types';
 import { useTasks } from '../features/tasks/useTasks';
 import { TaskSkeleton } from '../features/tasks/TaskSkeleton';
+import { ActivityTimeline } from '../features/activity/ActivityTimeline';
 import { KanbanBoard } from '../features/tasks/KanbanBoard';
 import { TaskCalendar } from '../features/tasks/TaskCalendar';
 
@@ -38,6 +39,7 @@ export function ProjectDetailsPage() {
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [deletingTask, setDeletingTask] = useState<Task | null>(null);
   const [isTaskSubmitting, setIsTaskSubmitting] = useState(false);
+  const [activityRefreshKey, setActivityRefreshKey] = useState(0);
   const { tasks, meta: taskMeta, stats, isLoading: areTasksLoading, error: taskError, reload: reloadTasks } =
     useTasks(projectId, taskFilters, taskPage, taskView === 'list' ? 8 : 50);
   const { register, handleSubmit, reset, formState: { isSubmitting } } = useForm<InviteValues>();
@@ -107,6 +109,7 @@ export function ProjectDetailsPage() {
       await createTask(projectId, toTaskPayload(values));
       setIsTaskModalOpen(false);
       showToast({ type: 'success', message: 'Task created.' });
+      setActivityRefreshKey((key) => key + 1);
       await Promise.all([reloadTasks(), loadProject()]);
     } catch (error) {
       showToast({ type: 'error', message: getAuthErrorMessage(error, 'Unable to create task.') });
@@ -122,6 +125,7 @@ export function ProjectDetailsPage() {
       await updateTask(projectId, editingTask.id, toTaskPayload(values));
       setEditingTask(null);
       showToast({ type: 'success', message: 'Task updated.' });
+      setActivityRefreshKey((key) => key + 1);
       await reloadTasks();
     } catch (error) {
       showToast({ type: 'error', message: getAuthErrorMessage(error, 'Unable to update task.') });
@@ -135,6 +139,7 @@ export function ProjectDetailsPage() {
     try {
       await updateTaskDueDate(projectId, task.id, dueDate);
       showToast({ type: 'success', message: 'Task due date updated.' });
+      setActivityRefreshKey((key) => key + 1);
       await reloadTasks();
     } catch (error) {
       showToast({ type: 'error', message: getAuthErrorMessage(error, 'Unable to update due date.') });
@@ -146,6 +151,7 @@ export function ProjectDetailsPage() {
     try {
       await reorderTasks(projectId, nextTasks);
       showToast({ type: 'success', message: 'Board updated.' });
+      setActivityRefreshKey((key) => key + 1);
       await reloadTasks();
     } catch (error) {
       showToast({ type: 'error', message: getAuthErrorMessage(error, 'Unable to update board.') });
@@ -340,12 +346,7 @@ export function ProjectDetailsPage() {
                 ))}
               </div>
             </section>
-            <section className="mt-10">
-              <h2 className="text-xl font-semibold">Recent activity</h2>
-              <div className="mt-5 rounded-md border border-white/10 p-5 text-sm text-slate-400">
-                Recent activity will appear here.
-              </div>
-            </section>
+            <ActivityTimeline projectId={project.id} refreshKey={activityRefreshKey} onToast={showToast} />
           </div>
         ) : (
           <p className="mt-10 text-slate-300">Project not found.</p>
@@ -367,6 +368,12 @@ export function ProjectDetailsPage() {
         isSubmitting={isTaskSubmitting}
         onClose={() => setEditingTask(null)}
         onSubmit={onUpdateTask}
+        projectId={projectId}
+        currentUserId={user?.id}
+        onToast={showToast}
+        onCommentsChanged={async () => {
+          setActivityRefreshKey((key) => key + 1);
+        }}
       />
       <DeleteTaskModal
         task={deletingTask}
@@ -377,5 +384,6 @@ export function ProjectDetailsPage() {
     </main>
   );
 }
+
 
 

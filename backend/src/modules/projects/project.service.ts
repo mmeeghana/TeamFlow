@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../config/prisma.js';
 import { HttpError } from '../../utils/http-error.js';
+import { recordActivity } from '../activity/activity.service.js';
 import type { CreateProjectInput, InviteMemberInput, ListProjectsInput, UpdateProjectInput } from './project.schemas.js';
 
 function slugify(value: string) {
@@ -95,7 +96,7 @@ export async function getProjectById(userId: string, projectId: string) {
 export async function createProject(userId: string, input: CreateProjectInput) {
   const key = await generateProjectKey(input.name);
 
-  return prisma.project.create({
+  const project = await prisma.project.create({
     data: {
       name: input.name,
       key,
@@ -111,6 +112,17 @@ export async function createProject(userId: string, input: CreateProjectInput) {
     },
     include: projectInclude,
   });
+
+  await recordActivity({
+    projectId: project.id,
+    actorId: userId,
+    action: 'PROJECT_CREATED',
+    entityType: 'Project',
+    entityId: project.id,
+    metadata: { name: project.name },
+  });
+
+  return project;
 }
 
 export async function updateProject(userId: string, projectId: string, input: UpdateProjectInput) {
@@ -159,7 +171,7 @@ export async function inviteProjectMember(userId: string, projectId: string, inp
     throw new HttpError(409, 'User is already a project member.');
   }
 
-  return prisma.projectMember.create({
+  const member = await prisma.projectMember.create({
     data: {
       projectId,
       userId: invitedUser.id,
@@ -169,6 +181,17 @@ export async function inviteProjectMember(userId: string, projectId: string, inp
       user: { select: { id: true, name: true, email: true, avatarUrl: true } },
     },
   });
+
+  await recordActivity({
+    projectId,
+    actorId: userId,
+    action: 'MEMBER_INVITED',
+    entityType: 'ProjectMember',
+    entityId: member.id,
+    metadata: { invitedUserId: invitedUser.id, invitedEmail: input.email },
+  });
+
+  return member;
 }
 
 export async function removeProjectMember(userId: string, projectId: string, memberUserId: string) {
@@ -179,10 +202,14 @@ export async function removeProjectMember(userId: string, projectId: string, mem
     throw new HttpError(400, 'Project owner cannot be removed from the project.');
   }
 
+  let removedMembershipId = memberUserId;
+
   try {
-    await prisma.projectMember.delete({
+    const removed = await prisma.projectMember.delete({
       where: { projectId_userId: { projectId, userId: memberUserId } },
+      select: { id: true },
     });
+    removedMembershipId = removed.id;
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
       throw new HttpError(404, 'Project member not found.');
@@ -190,6 +217,15 @@ export async function removeProjectMember(userId: string, projectId: string, mem
 
     throw error;
   }
+
+  await recordActivity({
+    projectId,
+    actorId: userId,
+    action: 'MEMBER_REMOVED',
+    entityType: 'ProjectMember',
+    entityId: removedMembershipId,
+    metadata: { removedUserId: memberUserId },
+  });
 
   return { message: 'Project member removed.' };
 }
