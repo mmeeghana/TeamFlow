@@ -10,11 +10,12 @@ import { useAuth } from '../features/auth/useAuth';
 import { TaskCard } from '../features/tasks/TaskCard';
 import { DeleteTaskModal } from '../features/tasks/DeleteTaskModal';
 import { TaskModal, type TaskFormValues } from '../features/tasks/TaskModal';
-import { createTask, deleteTask, updateTask } from '../features/tasks/task-api';
+import { createTask, deleteTask, reorderTasks, updateTask } from '../features/tasks/task-api';
 import { taskPriorityLabels, taskStatusLabels } from '../features/tasks/task-labels';
 import type { Task, TaskPriority, TaskStatus } from '../features/tasks/types';
 import { useTasks } from '../features/tasks/useTasks';
 import { TaskSkeleton } from '../features/tasks/TaskSkeleton';
+import { KanbanBoard } from '../features/tasks/KanbanBoard';
 
 type InviteValues = { email: string };
 
@@ -25,6 +26,7 @@ export function ProjectDetailsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [toast, setToast] = useState<ToastState>(null);
   const [taskPage, setTaskPage] = useState(1);
+  const [taskView, setTaskView] = useState<'list' | 'kanban'>('list');
   const [taskFilters, setTaskFilters] = useState<{
     search: string;
     status: TaskStatus | '';
@@ -127,6 +129,17 @@ export function ProjectDetailsPage() {
     }
   }
 
+  async function onReorderTasks(nextTasks: Array<{ id: string; status: TaskStatus; position: number }>) {
+    if (!projectId) return;
+    try {
+      await reorderTasks(projectId, nextTasks);
+      showToast({ type: 'success', message: 'Board updated.' });
+      await reloadTasks();
+    } catch (error) {
+      showToast({ type: 'error', message: getAuthErrorMessage(error, 'Unable to update board.') });
+      await reloadTasks();
+    }
+  }
   async function onDeleteTask() {
     if (!projectId || !deletingTask) return;
     setIsTaskSubmitting(true);
@@ -180,7 +193,13 @@ export function ProjectDetailsPage() {
             </div>
             <section className="mt-10">
               <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-                <h2 className="text-xl font-semibold">Tasks</h2>
+                <div className="flex items-center gap-3">
+                  <h2 className="text-xl font-semibold">Tasks</h2>
+                  <div className="rounded-md border border-white/10 p-1">
+                    <button type="button" onClick={() => setTaskView('list')} className={`rounded px-3 py-1 text-sm ${taskView === 'list' ? 'bg-cyan-300 text-slate-950' : 'text-slate-300'}`}>List View</button>
+                    <button type="button" onClick={() => setTaskView('kanban')} className={`rounded px-3 py-1 text-sm ${taskView === 'kanban' ? 'bg-cyan-300 text-slate-950' : 'text-slate-300'}`}>Kanban View</button>
+                  </div>
+                </div>
                 <button
                   type="button"
                   onClick={() => setIsTaskModalOpen(true)}
@@ -244,6 +263,10 @@ export function ProjectDetailsPage() {
               ) : tasks.length === 0 ? (
                 <div className="mt-6 rounded-md border border-dashed border-white/15 px-6 py-12 text-center">
                   <p className="text-lg font-medium text-white">No tasks yet</p>
+                </div>
+              ) : taskView === 'kanban' ? (
+                <div className="mt-6">
+                  <KanbanBoard tasks={tasks} onEdit={setEditingTask} onReorder={onReorderTasks} />
                 </div>
               ) : (
                 <div className="mt-6 grid gap-4 lg:grid-cols-2">
@@ -337,3 +360,4 @@ export function ProjectDetailsPage() {
     </main>
   );
 }
+

@@ -1,7 +1,13 @@
 import { Prisma, TaskStatus } from '@prisma/client';
 import { prisma } from '../../config/prisma.js';
 import { HttpError } from '../../utils/http-error.js';
-import type { CreateTaskInput, ListTasksInput, UpdateTaskInput } from './task.schemas.js';
+import type {
+  CreateTaskInput,
+  ListTasksInput,
+  MoveTaskInput,
+  ReorderTasksInput,
+  UpdateTaskInput,
+} from './task.schemas.js';
 
 const taskInclude = {
   createdBy: { select: { id: true, name: true, email: true, avatarUrl: true } },
@@ -63,7 +69,7 @@ export async function listProjectTasks(userId: string, projectId: string, input:
     prisma.task.findMany({
       where,
       include: taskInclude,
-      orderBy: [{ status: 'asc' }, { dueDate: 'asc' }, { updatedAt: 'desc' }],
+      orderBy: [{ status: 'asc' }, { position: 'asc' }, { dueDate: 'asc' }, { updatedAt: 'desc' }],
       skip,
       take: input.pageSize,
     }),
@@ -131,6 +137,7 @@ export async function createTask(userId: string, projectId: string, input: Creat
       creatorId: userId,
       assigneeId: input.assigneeId ?? null,
       reporterId: input.reporterId ?? userId,
+      position: await prisma.task.count({ where: { projectId, status: input.status, archivedAt: null } }),
     },
     include: taskInclude,
   });
@@ -184,3 +191,59 @@ export async function deleteTask(userId: string, projectId: string, taskId: stri
 
   return { message: 'Task deleted.' };
 }
+
+export async function moveTask(userId: string, projectId: string, taskId: string, input: MoveTaskInput) {
+  await getProjectAccess(userId, projectId);
+
+  const task = await prisma.task.findFirst({
+    where: { id: taskId, projectId, archivedAt: null },
+    select: { id: true },
+  });
+
+  if (!task) {
+    throw new HttpError(404, 'Task not found.');
+  }
+
+  return prisma.task.update({
+    where: { id: taskId },
+    data: {
+      status: input.status,
+      position: input.position,
+      completedAt: input.status === TaskStatus.DONE ? new Date() : null,
+    },
+    include: taskInclude,
+  });
+}
+
+export async function reorderTasks(userId: string, projectId: string, input: ReorderTasksInput) {
+  await getProjectAccess(userId, projectId);
+
+  const taskIds = input.tasks.map((task) => task.id);
+  const existingTaskCount = await prisma.task.count({
+    where: {
+      projectId,
+      id: { in: taskIds },
+      archivedAt: null,
+    },
+  });
+
+  if (existingTaskCount !== taskIds.length) {
+    throw new HttpError(400, 'One or more tasks do not belong to this project.');
+  }
+
+  await prisma.$transaction(
+    input.tasks.map((task) =>
+      prisma.task.update({
+        where: { id: task.id },
+        data: {
+          status: task.status,
+          position: task.position,
+          completedAt: task.status === TaskStatus.DONE ? new Date() : null,
+        },
+      }),
+    ),
+  );
+
+  return { message: 'Task order updated.' };
+}
+

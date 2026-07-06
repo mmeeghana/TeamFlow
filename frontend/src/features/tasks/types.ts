@@ -9,6 +9,7 @@ export type Task = {
   description: string | null;
   status: TaskStatus;
   priority: TaskPriority;
+  position: number;
   dueDate: string | null;
   estimatedHours: number | null;
   projectId: string;
@@ -40,3 +41,4 @@ export type TasksResponse = {
   };
   stats: TaskStats;
 };
+

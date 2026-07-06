@@ -40,3 +40,18 @@ export async function deleteTask(projectId: string, taskId: string) {
   const response = await api.delete<{ message: string }>(`/projects/${projectId}/tasks/${taskId}`);
   return response.data;
 }
+export type TaskReorderItem = {
+  id: string;
+  status: TaskStatus;
+  position: number;
+};
+
+export async function moveTask(projectId: string, taskId: string, payload: { status: TaskStatus; position: number }) {
+  const response = await api.patch<{ task: Task }>(`/projects/${projectId}/tasks/${taskId}/move`, payload);
+  return response.data.task;
+}
+
+export async function reorderTasks(projectId: string, tasks: TaskReorderItem[]) {
+  const response = await api.patch<{ message: string }>(`/projects/${projectId}/tasks/reorder`, { tasks });
+  return response.data;
+}

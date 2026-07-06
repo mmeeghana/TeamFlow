@@ -5,6 +5,8 @@ import {
   deleteTaskController,
   getTaskController,
   listTasksController,
+  moveTaskController,
+  reorderTasksController,
   updateTaskController,
 } from './task.controller.js';
 
@@ -13,6 +15,10 @@ export const taskRouter = Router({ mergeParams: true });
 taskRouter.use(requireAuth);
 taskRouter.get('/', listTasksController);
 taskRouter.post('/', createTaskController);
+taskRouter.patch('/reorder', reorderTasksController);
 taskRouter.get('/:taskId', getTaskController);
 taskRouter.patch('/:taskId', updateTaskController);
+taskRouter.patch('/:taskId/move', moveTaskController);
 taskRouter.delete('/:taskId', deleteTaskController);
+
+

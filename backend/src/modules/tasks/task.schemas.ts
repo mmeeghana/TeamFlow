@@ -39,6 +39,27 @@ export const updateTaskSchema = createTaskSchema.partial().refine(
   'At least one field is required.',
 );
 
+export const moveTaskSchema = z.object({
+  status: taskStatusSchema,
+  position: z.coerce.number().int().min(0),
+});
+
+export const reorderTasksSchema = z.object({
+  tasks: z
+    .array(
+      z.object({
+        id: uuidSchema,
+        status: taskStatusSchema,
+        position: z.number().int().min(0),
+      }),
+    )
+    .min(1)
+    .max(200),
+});
+
 export type ListTasksInput = z.infer<typeof listTasksSchema>;
 export type CreateTaskInput = z.infer<typeof createTaskSchema>;
 export type UpdateTaskInput = z.infer<typeof updateTaskSchema>;
+export type MoveTaskInput = z.infer<typeof moveTaskSchema>;
+export type ReorderTasksInput = z.infer<typeof reorderTasksSchema>;
+
