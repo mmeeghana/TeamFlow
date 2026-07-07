@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { requireAuth } from '../../middleware/require-auth.js';
 import { attachmentRouter } from '../attachments/attachment.routes.js';
 import { commentRouter } from '../comments/comment.routes.js';
+import { dependencyRouter } from '../dependencies/dependency.routes.js';
 import {
   createTaskController,
   deleteTaskController,
@@ -26,6 +27,8 @@ taskRouter.patch('/:taskId/date', updateTaskDateController);
 taskRouter.delete('/:taskId', deleteTaskController);
 taskRouter.use('/:taskId/comments', commentRouter);
 taskRouter.use('/:taskId/attachments', attachmentRouter);
+taskRouter.use('/:taskId/dependencies', dependencyRouter);
+
 
 
 

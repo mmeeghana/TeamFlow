@@ -7,12 +7,14 @@ import { ProtectedRoute } from '../features/auth/ProtectedRoute';
 import { RegisterPage } from '../features/auth/RegisterPage';
 import { ResetPasswordPage } from '../features/auth/ResetPasswordPage';
 import { VerifyEmailPage } from '../features/auth/VerifyEmailPage';
+import { ThemeProvider } from '../features/theme/ThemeContext';
 import { DashboardPage } from '../pages/DashboardPage';
 import { ProjectDetailsPage } from '../pages/ProjectDetailsPage';
 
 export function App() {
   return (
-    <AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
       <Routes>
         <Route path="/" element={<Navigate to="/login" replace />} />
         <Route element={<AuthLayout />}>
@@ -27,6 +29,8 @@ export function App() {
           <Route path="/projects/:projectId" element={<ProjectDetailsPage />} />
         </Route>
       </Routes>
-    </AuthProvider>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
+

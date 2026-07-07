@@ -46,8 +46,18 @@ export const updateTaskController: RequestHandler = async (req, res, next) => {
   try {
     const { projectId, taskId } = taskParamsSchema.parse(req.params);
     const input = updateTaskSchema.parse(req.body);
-    const task = await updateTask(req.userId!, projectId, taskId, input);
-    res.status(200).json({ task });
+
+    const { task, warning } = await updateTask(
+      req.userId!,
+      projectId,
+      taskId,
+      input,
+    );
+
+    res.status(200).json({
+      task,
+      warning,
+    });
   } catch (error) {
     next(error);
   }
@@ -65,8 +75,8 @@ export const deleteTaskController: RequestHandler = async (req, res, next) => {
   try {
     const { projectId, taskId } = taskParamsSchema.parse(req.params);
     const input = moveTaskSchema.parse(req.body);
-    const task = await moveTask(req.userId!, projectId, taskId, input);
-    res.status(200).json({ task });
+    const payload = await moveTask(req.userId!, projectId, taskId, input);
+    res.status(200).json(payload);
   } catch (error) {
     next(error);
   }
@@ -92,3 +102,5 @@ export const updateTaskDateController: RequestHandler = async (req, res, next) =
     next(error);
   }
 };
+
+

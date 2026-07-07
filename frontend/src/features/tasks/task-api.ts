@@ -32,8 +32,18 @@ export async function createTask(projectId: string, payload: TaskPayload) {
 }
 
 export async function updateTask(projectId: string, taskId: string, payload: TaskPayload) {
-  const response = await api.patch<{ task: Task }>(`/projects/${projectId}/tasks/${taskId}`, payload);
-  return response.data.task;
+  const response = await api.patch<{
+    task: Task;
+    warning?: {
+      message: string;
+      blockers: unknown[];
+    };
+  }>(
+    `/projects/${projectId}/tasks/${taskId}`,
+    payload,
+  );
+
+  return response.data;
 }
 
 export async function deleteTask(projectId: string, taskId: string) {
@@ -52,10 +62,26 @@ export async function moveTask(projectId: string, taskId: string, payload: { sta
 }
 
 export async function reorderTasks(projectId: string, tasks: TaskReorderItem[]) {
-  const response = await api.patch<{ message: string }>(`/projects/${projectId}/tasks/reorder`, { tasks });
+  const response = await api.patch<{
+    message: string;
+    warnings?: Array<{
+      taskId: string;
+      warning: {
+        message: string;
+        blockers: {
+          id: string;
+          title: string;
+          status: string;
+        }[];
+      };
+    }>;
+  }>(`/projects/${projectId}/tasks/reorder`, { tasks });
+
   return response.data;
 }
 export async function updateTaskDueDate(projectId: string, taskId: string, dueDate: string | null) {
   const response = await api.patch<{ task: Task }>(`/projects/${projectId}/tasks/${taskId}/date`, { dueDate });
   return response.data.task;
 }
+
+

@@ -65,3 +65,72 @@ html {
     justify-content: center;
   }
 }
+
+@layer base {
+  html.light {
+    color-scheme: light;
+  }
+
+  html.light body {
+    background: #f8fafc;
+    color: #0f172a;
+  }
+}
+
+@layer utilities {
+  html.light .bg-slate-950 { background-color: #f8fafc !important; }
+  html.light .bg-slate-900 { background-color: #ffffff !important; }
+  html.light .bg-slate-800 { background-color: #f1f5f9 !important; }
+  html.light .bg-slate-950\/80 { background-color: rgba(15, 23, 42, 0.28) !important; }
+  html.light .bg-white\/\[0\.03\] { background-color: rgba(255, 255, 255, 0.88) !important; }
+  html.light .bg-white\/5 { background-color: rgba(255, 255, 255, 0.92) !important; }
+  html.light .bg-white\/10 { background-color: rgba(15, 23, 42, 0.08) !important; }
+  html.light .bg-cyan-300\/10 { background-color: rgba(8, 145, 178, 0.1) !important; }
+
+  html.light .text-slate-50,
+  html.light .text-slate-100,
+  html.light .text-slate-200,
+  html.light .text-white { color: #0f172a !important; }
+  html.light .text-slate-300 { color: #334155 !important; }
+  html.light .text-slate-400 { color: #64748b !important; }
+  html.light .text-slate-500 { color: #64748b !important; }
+  html.light .text-cyan-300 { color: #0891b2 !important; }
+  html.light .text-cyan-200 { color: #0e7490 !important; }
+  html.light .text-rose-300 { color: #e11d48 !important; }
+  html.light .text-emerald-300 { color: #059669 !important; }
+  html.light .text-amber-300 { color: #b45309 !important; }
+  html.light .text-violet-300 { color: #7c3aed !important; }
+
+  html.light .border-white\/10,
+  html.light .border-white\/15 { border-color: rgba(15, 23, 42, 0.14) !important; }
+  html.light .border-dashed.border-white\/10,
+  html.light .border-dashed.border-white\/15 { border-color: rgba(15, 23, 42, 0.22) !important; }
+
+  html.light input,
+  html.light textarea,
+  html.light select {
+    color: #0f172a;
+    background-color: rgba(255, 255, 255, 0.94);
+  }
+
+  html.light input::placeholder,
+  html.light textarea::placeholder { color: #64748b; }
+
+  html.light option {
+    color: #0f172a;
+    background-color: #ffffff;
+  }
+}
+
+html.light .teamflow-calendar .fc {
+  --fc-border-color: rgba(15, 23, 42, 0.16);
+  --fc-neutral-bg-color: rgba(15, 23, 42, 0.04);
+  --fc-list-event-hover-bg-color: rgba(15, 23, 42, 0.06);
+  color: rgb(15 23 42);
+}
+
+html.light .teamflow-calendar .fc-button {
+  border-color: rgba(15, 23, 42, 0.16) !important;
+  background: rgba(255, 255, 255, 0.9) !important;
+  color: rgb(15 23 42) !important;
+}

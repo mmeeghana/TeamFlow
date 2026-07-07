@@ -40,6 +40,8 @@ function actionText(item: ActivityLog) {
       return `${actor} edited a comment`;
     case 'COMMENT_DELETED':
       return `${actor} deleted a comment`;
+    case 'TASK_DEPENDENCY_WARNING':
+      return `${actor} attempted to complete ${taskTitle} before its dependencies were finished`;
     default:
       return `${actor} updated the project`;
   }

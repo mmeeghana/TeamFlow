@@ -16,7 +16,17 @@ export type ActivityAction =
   | 'COMMENT_EDITED'
   | 'COMMENT_DELETED'
   | 'ATTACHMENT_UPLOADED'
-  | 'ATTACHMENT_DELETED';
+  | 'ATTACHMENT_DELETED'
+  | 'TASK_DEPENDENCY_ADDED'
+  | 'TASK_DEPENDENCY_REMOVED'
+  | 'TASK_DEPENDENCY_WARNING'
+  | 'RCA_CREATED'
+  | 'RCA_UPDATED'
+  | 'RCA_DELETED'
+  | 'RCA_SUBMITTED'
+  | 'REVIEW_REQUESTED'
+  | 'REVIEW_APPROVED'
+  | 'REVIEW_REJECTED';
 
 export async function assertProjectMember(userId: string, projectId: string) {
   const project = await prisma.project.findFirst({
@@ -87,3 +97,17 @@ export async function listProjectActivity(userId: string, projectId: string, inp
 
 
 
+
+
+export async function exportProjectActivity(userId: string, projectId: string) {
+  await assertProjectMember(userId, projectId);
+
+  return prisma.activityLog.findMany({
+    where: { projectId },
+    include: {
+      actor: { select: { id: true, name: true, email: true, avatarUrl: true } },
+      task: { select: { id: true, title: true } },
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+}

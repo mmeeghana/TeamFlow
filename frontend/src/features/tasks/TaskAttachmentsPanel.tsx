@@ -22,7 +22,7 @@ import {
 const maxFileSize = 10 * 1024 * 1024;
 const allowedExtensions = ['pdf', 'doc', 'docx', 'png', 'jpg', 'jpeg', 'gif', 'txt', 'zip'];
 
-type Toast = { type: 'success' | 'error'; message: string };
+type Toast = { type: 'success' | 'error' | 'warning'; message: string };
 
 function formatFileSize(size: number) {
   if (size < 1024) return `${size} B`;
@@ -260,7 +260,7 @@ export function TaskAttachmentsPanel({
                   <div className="min-w-0">
                     <p className="truncate text-sm font-medium text-white">{attachment.originalName}</p>
                     <p className="mt-1 text-xs text-slate-400">
-                      {formatFileSize(attachment.size)} • {formatRelativeTime(attachment.uploadedAt)}
+                      {formatFileSize(attachment.size)} ï¿½ {formatRelativeTime(attachment.uploadedAt)}
                     </p>
                     <p className="mt-1 truncate text-xs text-slate-500">
                       {attachment.uploadedBy?.name ?? 'Deleted user'}

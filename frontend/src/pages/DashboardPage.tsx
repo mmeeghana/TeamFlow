@@ -2,6 +2,8 @@ import { LogOut, Plus, Search } from 'lucide-react';
 import { useState } from 'react';
 import { Toast, type ToastState } from '../components/Toast';
 import { NotificationBell } from '../features/notifications/NotificationBell';
+import { ThemeToggle } from '../features/theme/ThemeToggle';
+import { DashboardAnalytics } from '../features/dashboard/DashboardAnalytics';
 import { useAuth } from '../features/auth/useAuth';
 import { DeleteProjectModal } from '../features/projects/DeleteProjectModal';
 import { ProjectCard } from '../features/projects/ProjectCard';
@@ -9,6 +11,7 @@ import { ProjectModal, type ProjectFormValues } from '../features/projects/Proje
 import { createProject, deleteProject, updateProject } from '../features/projects/project-api';
 import type { Project } from '../features/projects/types';
 import { useProjects } from '../features/projects/useProjects';
+import { downloadCsv } from '../utils/csv';
 
 export function DashboardPage() {
   const { logout, user } = useAuth();
@@ -55,6 +58,10 @@ export function DashboardPage() {
     }
   }
 
+  function exportProjects() {
+    downloadCsv('projects.csv', projects.map((project) => ({ id: project.id, name: project.name, owner: project.owner.name, members: project._count.members, tasks: project._count.tasks, createdAt: project.createdAt })));
+  }
+
   async function handleDelete() {
     if (!deletingProject) return;
     setIsSubmitting(true);
@@ -80,6 +87,7 @@ export function DashboardPage() {
             <h1 className="mt-1 text-2xl font-semibold tracking-normal">Dashboard</h1>
           </div>
           <div className="flex items-center gap-3">
+            <ThemeToggle />
             <NotificationBell onToast={showToast} />
             <div className="hidden text-right sm:block">
               <p className="text-sm font-medium">{user?.name}</p>
@@ -100,19 +108,36 @@ export function DashboardPage() {
         <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
           <div>
             <p className="text-lg text-slate-200">Welcome, {user?.name}.</p>
-            <h2 className="mt-2 text-3xl font-semibold tracking-normal">Projects</h2>
+            <h2 className="mt-2 text-3xl font-semibold tracking-normal">Analytics</h2>
           </div>
-          <button
-            type="button"
-            onClick={() => setIsCreateOpen(true)}
-            className="inline-flex items-center justify-center gap-2 rounded-md bg-cyan-300 px-4 py-3 font-semibold text-slate-950 hover:bg-cyan-200"
-          >
-            <Plus size={18} />
-            Create Project
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={exportProjects}
+              className="rounded-md border border-white/10 px-4 py-3 font-semibold text-slate-100"
+            >
+              Export CSV
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsCreateOpen(true)}
+              className="inline-flex items-center justify-center gap-2 rounded-md bg-cyan-300 px-4 py-3 font-semibold text-slate-950 hover:bg-cyan-200"
+            >
+              <Plus size={18} />
+              Create Project
+            </button>
+          </div>
         </div>
 
-        <div className="mt-8 flex items-center gap-3 rounded-md border border-white/10 bg-white/5 px-4 py-3">
+        <div className="mt-8">
+          <DashboardAnalytics onToast={showToast} />
+        </div>
+
+        <div className="mt-10 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+          <h2 className="text-2xl font-semibold tracking-normal">Projects</h2>
+        </div>
+
+        <div className="mt-5 flex items-center gap-3 rounded-md border border-white/10 bg-white/5 px-4 py-3">
           <Search size={18} className="text-slate-400" />
           <input
             value={search}
@@ -194,4 +219,8 @@ export function DashboardPage() {
     </main>
   );
 }
+
+
+
+
 

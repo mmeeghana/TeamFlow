@@ -1,5 +1,5 @@
 export type ToastState = {
-  type: 'success' | 'error';
+  type: 'success' | 'error' | 'warning';
   message: string;
 } | null;
 

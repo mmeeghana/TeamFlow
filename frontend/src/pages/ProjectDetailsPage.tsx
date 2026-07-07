@@ -1,4 +1,4 @@
-import { ArrowLeft, Plus, Search, Trash2, UserPlus } from 'lucide-react';
+import { ArrowLeft, Download, Plus, Search, Trash2, UserPlus } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Link, useParams } from 'react-router-dom';
@@ -16,9 +16,13 @@ import type { Task, TaskPriority, TaskStatus } from '../features/tasks/types';
 import { useTasks } from '../features/tasks/useTasks';
 import { TaskSkeleton } from '../features/tasks/TaskSkeleton';
 import { ActivityTimeline } from '../features/activity/ActivityTimeline';
+import { exportProjectActivity } from '../features/activity/activity-api';
 import { NotificationBell } from '../features/notifications/NotificationBell';
+import { ThemeToggle } from '../features/theme/ThemeToggle';
 import { KanbanBoard } from '../features/tasks/KanbanBoard';
 import { TaskCalendar } from '../features/tasks/TaskCalendar';
+import { RcaPanel } from '../features/rcas/RcaPanel';
+import { downloadCsv } from '../utils/csv';
 
 type InviteValues = { email: string };
 
@@ -29,7 +33,7 @@ export function ProjectDetailsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [toast, setToast] = useState<ToastState>(null);
   const [taskPage, setTaskPage] = useState(1);
-  const [taskView, setTaskView] = useState<'list' | 'kanban' | 'calendar'>('list');
+  const [taskView, setTaskView] = useState<'list' | 'kanban' | 'calendar' | 'rca'>('list');
   const [taskFilters, setTaskFilters] = useState<{
     search: string;
     status: TaskStatus | '';
@@ -120,20 +124,42 @@ export function ProjectDetailsPage() {
   }
 
   async function onUpdateTask(values: TaskFormValues) {
-    if (!projectId || !editingTask) return;
-    setIsTaskSubmitting(true);
-    try {
-      await updateTask(projectId, editingTask.id, toTaskPayload(values));
-      setEditingTask(null);
-      showToast({ type: 'success', message: 'Task updated.' });
-      setActivityRefreshKey((key) => key + 1);
-      await reloadTasks();
-    } catch (error) {
-      showToast({ type: 'error', message: getAuthErrorMessage(error, 'Unable to update task.') });
-    } finally {
-      setIsTaskSubmitting(false);
+  if (!projectId || !editingTask) return;
+
+  setIsTaskSubmitting(true);
+
+  try {
+    const result = await updateTask(
+      projectId,
+      editingTask.id,
+      toTaskPayload(values),
+    );
+
+    setEditingTask(null);
+
+    if (result.warning) {
+      showToast({
+        type: 'error', // or 'warning' if your toast supports it
+        message: result.warning.message,
+      });
+    } else {
+      showToast({
+        type: 'success',
+        message: 'Task updated.',
+      });
     }
+
+    setActivityRefreshKey((key) => key + 1);
+    await reloadTasks();
+  } catch (error) {
+    showToast({
+      type: 'error',
+      message: getAuthErrorMessage(error, 'Unable to update task.'),
+    });
+  } finally {
+    setIsTaskSubmitting(false);
   }
+}
 
   async function onTaskDueDateChange(task: Task, dueDate: string) {
     if (!projectId) return;
@@ -148,17 +174,34 @@ export function ProjectDetailsPage() {
     }
   }
   async function onReorderTasks(nextTasks: Array<{ id: string; status: TaskStatus; position: number }>) {
-    if (!projectId) return;
-    try {
-      await reorderTasks(projectId, nextTasks);
-      showToast({ type: 'success', message: 'Board updated.' });
-      setActivityRefreshKey((key) => key + 1);
-      await reloadTasks();
-    } catch (error) {
-      showToast({ type: 'error', message: getAuthErrorMessage(error, 'Unable to update board.') });
-      await reloadTasks();
+  if (!projectId) return;
+
+  try {
+    const result = await reorderTasks(projectId, nextTasks);
+
+    if (result.warnings?.length) {
+      showToast({
+        type: 'error',
+        message: result.warnings[0].warning.message,
+      });
+    } else {
+      showToast({
+        type: 'success',
+        message: 'Board updated.',
+      });
     }
+
+    setActivityRefreshKey((key) => key + 1);
+    await reloadTasks();
+  } catch (error) {
+    showToast({
+      type: 'error',
+      message: getAuthErrorMessage(error, 'Unable to update board.'),
+    });
+
+    await reloadTasks();
   }
+}
   async function onDeleteTask() {
     if (!projectId || !deletingTask) return;
     setIsTaskSubmitting(true);
@@ -174,6 +217,19 @@ export function ProjectDetailsPage() {
     }
   }
 
+  async function exportActivity() {
+    if (!projectId) return;
+    try {
+      const items = await exportProjectActivity(projectId);
+      downloadCsv('activity.csv', items.map((item) => ({ action: item.action, actor: item.actor?.name ?? '', task: item.task?.title ?? '', createdAt: item.createdAt }))); 
+    } catch (error) {
+      showToast({ type: 'error', message: getAuthErrorMessage(error, 'Unable to export activity.') });
+    }
+  }
+
+  function exportTasks() {
+    downloadCsv('tasks.csv', tasks.map((task) => ({ id: task.id, title: task.title, status: task.status, priority: task.priority, assignee: task.assignee?.name ?? '', dueDate: task.dueDate ?? '' })));
+  }
   return (
     <main className="min-h-screen bg-slate-950 text-slate-50">
       <Toast toast={toast} />
@@ -182,7 +238,10 @@ export function ProjectDetailsPage() {
           <Link to="/dashboard" className="inline-flex items-center gap-2 text-sm text-cyan-300">
             <ArrowLeft size={16} /> Projects
           </Link>
-          <NotificationBell onToast={showToast} />
+          <div className="flex items-center gap-3">
+            <ThemeToggle />
+            <NotificationBell onToast={showToast} />
+          </div>
         </div>
         {isLoading ? (
           <p className="mt-10 text-slate-300">Loading project...</p>
@@ -220,16 +279,24 @@ export function ProjectDetailsPage() {
                   <div className="rounded-md border border-white/10 p-1">
                     <button type="button" onClick={() => setTaskView('list')} className={`rounded px-3 py-1 text-sm ${taskView === 'list' ? 'bg-cyan-300 text-slate-950' : 'text-slate-300'}`}>List View</button>
                     <button type="button" onClick={() => setTaskView('kanban')} className={`rounded px-3 py-1 text-sm ${taskView === 'kanban' ? 'bg-cyan-300 text-slate-950' : 'text-slate-300'}`}>Kanban View</button>
-                    <button type="button" onClick={() => setTaskView('calendar')} className={`rounded px-3 py-1 text-sm ${taskView === 'calendar' ? 'bg-cyan-300 text-slate-950' : 'text-slate-300'}`}>Calendar</button>
+                    <button type="button" onClick={() => setTaskView('calendar')} className={`rounded px-3 py-1 text-sm ${taskView === 'calendar' ? 'bg-cyan-300 text-slate-950' : 'text-slate-300'}`}>Calendar</button><button type="button" onClick={() => setTaskView('rca')} className={`rounded px-3 py-1 text-sm ${taskView === 'rca' ? 'bg-cyan-300 text-slate-950' : 'text-slate-300'}`}>Root Cause Analysis</button>
                   </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setIsTaskModalOpen(true)}
-                  className="inline-flex items-center justify-center gap-2 rounded-md bg-cyan-300 px-4 py-2 font-semibold text-slate-950"
-                >
-                  <Plus size={16} /> Create Task
-                </button>
+                <div className="flex flex-wrap gap-2">
+                  <button type="button" onClick={exportTasks} className="inline-flex items-center justify-center gap-2 rounded-md border border-white/10 px-4 py-2 font-semibold text-slate-100">
+                    <Download size={16} /> Export Tasks
+                  </button>
+                  <button type="button" onClick={() => void exportActivity()} className="inline-flex items-center justify-center gap-2 rounded-md border border-white/10 px-4 py-2 font-semibold text-slate-100">
+                    <Download size={16} /> Export Activity
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsTaskModalOpen(true)}
+                    className="inline-flex items-center justify-center gap-2 rounded-md bg-cyan-300 px-4 py-2 font-semibold text-slate-950"
+                  >
+                    <Plus size={16} /> Create Task
+                  </button>
+                </div>
               </div>
               <div className="mt-5 grid gap-3 lg:grid-cols-[1fr_160px_160px_220px]">
                 <div className="flex items-center gap-3 rounded-md border border-white/10 bg-white/5 px-4 py-3">
@@ -278,12 +345,13 @@ export function ProjectDetailsPage() {
                   {project.members.map((member) => <option key={member.userId} value={member.userId}>{member.user.name}</option>)}
                 </select>
               </div>
-              {taskError ? <p className="mt-5 text-rose-300">{taskError}</p> : null}
-              {areTasksLoading ? (
+              {taskView === 'rca' ? <RcaPanel projectId={project.id} tasks={tasks} members={project.members} currentUserId={user?.id} isOwner={isOwner} onToast={showToast} onChanged={async () => setActivityRefreshKey((key) => key + 1)} /> : null}
+              {taskView !== 'rca' && taskError ? <p className="mt-5 text-rose-300">{taskError}</p> : null}
+              {taskView !== 'rca' && areTasksLoading ? (
                 <div className="mt-6 grid gap-4 lg:grid-cols-2">
                   {Array.from({ length: 4 }).map((_, index) => <TaskSkeleton key={index} />)}
                 </div>
-              ) : tasks.length === 0 ? (
+              ) : taskView !== 'rca' && tasks.length === 0 ? (
                 <div className="mt-6 rounded-md border border-dashed border-white/15 px-6 py-12 text-center">
                   <p className="text-lg font-medium text-white">No tasks yet</p>
                 </div>
@@ -376,11 +444,16 @@ export function ProjectDetailsPage() {
         currentUserId={user?.id}
         onToast={showToast}
         projectOwnerId={project?.ownerId}
+        projectTasks={tasks}
         onCommentsChanged={async () => {
           setActivityRefreshKey((key) => key + 1);
         }}
         onAttachmentsChanged={async () => {
           setActivityRefreshKey((key) => key + 1);
+        }}
+        onDependenciesChanged={async () => {
+          setActivityRefreshKey((key) => key + 1);
+          await reloadTasks();
         }}
       />
       <DeleteTaskModal
@@ -392,6 +465,15 @@ export function ProjectDetailsPage() {
     </main>
   );
 }
+
+
+
+
+
+
+
+
+
 
 
 

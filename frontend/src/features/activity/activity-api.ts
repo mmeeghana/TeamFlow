@@ -24,3 +24,8 @@ export async function getProjectActivity(projectId: string, page = 1, pageSize =
   const response = await api.get<ActivityResponse>(`/projects/${projectId}/activity`, { params: { page, pageSize } });
   return response.data;
 }
+
+export async function exportProjectActivity(projectId: string) {
+  const response = await api.get<{ items: ActivityLog[] }>(`/projects/${projectId}/activity/export`);
+  return response.data.items;
+}

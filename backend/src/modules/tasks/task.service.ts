@@ -3,6 +3,7 @@ import { prisma } from '../../config/prisma.js';
 import { HttpError } from '../../utils/http-error.js';
 import { recordActivity } from '../activity/activity.service.js';
 import { createNotification } from '../notifications/notification.service.js';
+import { findUnfinishedBlockers } from '../dependencies/dependency.service.js';
 import type {
   CreateTaskInput,
   ListTasksInput,
@@ -48,6 +49,46 @@ async function assertUsersAreProjectMembers(projectId: string, userIds: Array<st
   }
 }
 
+
+async function recordUnfinishedDependencyWarning(
+  userId: string,
+  projectId: string,
+  taskId: string,
+) {
+  console.log("==============");
+  console.log("TASK:", taskId);
+
+  const blockers = await findUnfinishedBlockers(taskId);
+
+  console.log("BLOCKERS:", JSON.stringify(blockers, null, 2));
+
+  if (blockers.length === 0) {
+    console.log("NO BLOCKERS");
+    return null;
+  }
+
+  console.log("WARNING SHOULD BE SHOWN");
+
+  const warning = "This task still has unfinished dependencies.";
+
+  await recordActivity({
+    projectId,
+    taskId,
+    actorId: userId,
+    action: "TASK_DEPENDENCY_WARNING",
+    entityType: "Task",
+    entityId: taskId,
+    metadata: {
+      warning,
+      blockers: blockers.map((b) => b.sourceTask),
+    },
+  });
+
+  return {
+    message: warning,
+    blockers: blockers.map((b) => b.sourceTask),
+  };
+}
 function dateMeta(value: Date | null | undefined) {
   return value ? value.toISOString() : null;
 }
@@ -153,6 +194,9 @@ export async function updateTask(userId: string, projectId: string, taskId: stri
     select: { id: true, status: true, priority: true, dueDate: true, assigneeId: true, title: true },
   });
   if (!existingTask) throw new HttpError(404, 'Task not found.');
+  console.log("✅ updateTask() is running");
+console.log("input.status =", input.status);
+console.log("existing.status =", existingTask.status);
 
   const task = await prisma.task.update({
     where: { id: taskId },
@@ -193,7 +237,8 @@ export async function updateTask(userId: string, projectId: string, taskId: stri
     }
     await recordActivity({ projectId, taskId, actorId: userId, action: 'ASSIGNEE_CHANGED', entityType: 'Task', entityId: taskId, metadata: { from: existingTask.assigneeId, to: input.assigneeId } });
   }
-  return task;
+  const warning = input.status === TaskStatus.DONE && existingTask.status !== TaskStatus.DONE ? await recordUnfinishedDependencyWarning(userId, projectId, taskId) : null;
+  return { task, warning };
 }
 
 export async function deleteTask(userId: string, projectId: string, taskId: string) {
@@ -230,24 +275,106 @@ export async function moveTask(userId: string, projectId: string, taskId: string
   if (input.status !== existingTask.status) {
     await recordActivity({ projectId, taskId, actorId: userId, action: 'STATUS_CHANGED', entityType: 'Task', entityId: taskId, metadata: { from: existingTask.status, to: input.status } });
   }
-  return task;
+  const warning = input.status === TaskStatus.DONE && existingTask.status !== TaskStatus.DONE ? await recordUnfinishedDependencyWarning(userId, projectId, taskId) : null;
+  return { task, warning };
 }
 
-export async function reorderTasks(userId: string, projectId: string, input: ReorderTasksInput) {
+export async function reorderTasks(
+  userId: string,
+  projectId: string,
+  input: ReorderTasksInput,
+) {
   await getProjectAccess(userId, projectId);
+
   const taskIds = input.tasks.map((task) => task.id);
-  const existingTaskCount = await prisma.task.count({ where: { projectId, id: { in: taskIds }, archivedAt: null } });
-  if (existingTaskCount !== taskIds.length) throw new HttpError(400, 'One or more tasks do not belong to this project.');
+
+  const existingTasks = await prisma.task.findMany({
+    where: {
+      projectId,
+      id: { in: taskIds },
+      archivedAt: null,
+    },
+    select: {
+      id: true,
+      status: true,
+    },
+  });
+
+  if (existingTasks.length !== taskIds.length) {
+    throw new HttpError(400, 'One or more tasks do not belong to this project.');
+  }
+
+  const existingMap = new Map(
+    existingTasks.map((task) => [task.id, task]),
+  );
+
+  const warnings: Array<{
+    taskId: string;
+    warning: Awaited<ReturnType<typeof recordUnfinishedDependencyWarning>>;
+  }> = [];
+
   await prisma.$transaction(
     input.tasks.map((task) =>
       prisma.task.update({
         where: { id: task.id },
-        data: { status: task.status, position: task.position, completedAt: task.status === TaskStatus.DONE ? new Date() : null },
+        data: {
+          status: task.status,
+          position: task.position,
+          completedAt:
+            task.status === TaskStatus.DONE ? new Date() : null,
+        },
       }),
     ),
   );
-  return { message: 'Task order updated.' };
+
+  for (const task of input.tasks) {
+    const previous = existingMap.get(task.id);
+
+    if (!previous) continue;
+
+    if (
+      previous.status !== TaskStatus.DONE &&
+      task.status === TaskStatus.DONE
+    ) {
+      const warning = await recordUnfinishedDependencyWarning(
+        userId,
+        projectId,
+        task.id,
+      );
+
+      if (warning) {
+        warnings.push({
+          taskId: task.id,
+          warning,
+        });
+      }
+    }
+
+    if (previous.status !== task.status) {
+      await recordActivity({
+        projectId,
+        taskId: task.id,
+        actorId: userId,
+        action: 'STATUS_CHANGED',
+        entityType: 'Task',
+        entityId: task.id,
+        metadata: {
+          from: previous.status,
+          to: task.status,
+        },
+      });
+    }
+  }
+
+  return {
+    message: 'Task order updated.',
+    warnings,
+  };
 }
+
+
+
+
 
 
 

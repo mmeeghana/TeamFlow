@@ -1,9 +1,10 @@
-import { useEffect } from 'react';
+import { useEffect , useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import type { ProjectMember } from '../projects/types';
 import { taskPriorityLabels, taskStatusLabels } from './task-labels';
 import { CommentsPanel } from '../comments/CommentsPanel';
 import { TaskAttachmentsPanel } from './TaskAttachmentsPanel';
+import { TaskDependenciesPanel } from './TaskDependenciesPanel';
 import type { Task, TaskPriority, TaskStatus } from './types';
 
 export type TaskFormValues = {
@@ -38,6 +39,8 @@ export function TaskModal({
   onCommentsChanged,
   projectOwnerId,
   onAttachmentsChanged,
+  projectTasks = [],
+  onDependenciesChanged,
 }: {
   title: string;
   task?: Task | null;
@@ -48,10 +51,12 @@ export function TaskModal({
   onSubmit: (values: TaskFormValues) => Promise<void>;
   projectId?: string;
   currentUserId?: string;
-  onToast?: (toast: { type: 'success' | 'error'; message: string }) => void;
+  onToast?: (toast: { type: 'success' | 'error' | 'warning'; message: string }) => void;
   onCommentsChanged?: () => Promise<void>;
   projectOwnerId?: string;
   onAttachmentsChanged?: () => Promise<void>;
+  projectTasks?: Task[];
+  onDependenciesChanged?: () => Promise<void>;
 }) {
   const {
     register,
@@ -70,6 +75,8 @@ export function TaskModal({
     },
   });
 
+  const modalRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     reset({
       title: task?.title ?? '',
@@ -80,13 +87,20 @@ export function TaskModal({
       estimatedHours: task?.estimatedHours?.toString() ?? '',
       assigneeId: task?.assigneeId ?? '',
     });
-  }, [isOpen, reset, task]);
+    modalRef.current?.scrollTo({
+    top: 0,
+    behavior: 'auto',
+  });
+}, [isOpen, reset, task]);
 
   if (!isOpen) return null;
 
   return (
-  <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-slate-950/80 px-4 py-8">
-    <div className="w-full max-w-2xl rounded-md border border-white/10 bg-slate-900 p-6 shadow-2xl">
+  <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 px-4 py-8">
+  <div
+    ref={modalRef}
+    className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-md border border-white/10 bg-slate-900 p-6 shadow-2xl"
+  >
       <h2 className="text-xl font-semibold text-white">{title}</h2>
 
       {/* TASK FORM */}
@@ -242,6 +256,13 @@ export function TaskModal({
             onToast={onToast}
             onChanged={onCommentsChanged}
           />
+          <TaskDependenciesPanel
+            projectId={projectId}
+            task={task}
+            tasks={projectTasks}
+            onToast={onToast}
+            onChanged={onDependenciesChanged}
+          />
           <TaskAttachmentsPanel
             projectId={projectId}
             taskId={task.id}
@@ -256,6 +277,7 @@ export function TaskModal({
   </div>
 );
 }
+
 
 
 
